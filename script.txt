@@ -1,0 +1,133 @@
+(function() {
+  const boardSize = 10;
+  const board = Array.from({ length: boardSize }, () => Array(boardSize).fill(null));
+
+  // 获取第 x 行 y 列的 DOM 元素
+  function getTile(x, y) {
+    const tiles = document.querySelectorAll('.select-none');
+    return tiles[x * boardSize + y] || null;
+  }
+
+  // 从格子 class 中读取数值
+  function readTileValue(el) {
+    if (!el) return null;
+    const classList = el.classList;
+    for (let i = 1; i <= 8; i++) {
+      if (classList.contains(`text-${i}`)) return i;
+    }
+    if (classList.contains('flagged')) return 'F'; // 旗子
+    return null;
+  }
+
+  // DOM -> board 同步
+  function syncBoardFromDOM() {
+  const tiles = Array.from(document.querySelectorAll('.select-none'));
+
+  // 遍历所有格子并更新棋盘状态
+  for (let x = 0; x < 10; x++) {
+      for (let y = 0; y < 10; y++) {
+        const el = tiles[x * 10 + y];
+        const text = el.innerText.trim();
+        const styleAttr = el.getAttribute('style') || '';
+
+        if (styleAttr.includes('background-color: transparent')) {
+          board[x][y] = 0;  // 这里 0 表示已点击的空白格
+        }
+        // 否则尝试读取数字
+        else if (text !== '' && !isNaN(text)) {
+          board[x][y] = parseInt(text);
+        }
+      }
+    }
+  }
+
+  // 8方向辅助
+  const dirs = [
+    [-1,-1],[0,-1],[1,-1],
+    [-1, 0],       [1, 0],
+    [-1, 1],[0, 1],[1, 1]
+  ];
+
+  // 找所有“安全格子”或“应该插旗的雷”
+  function analyzeBoard() {
+    const safeClicks = [];
+    const toFlag = [];
+
+    for (let x = 0; x < boardSize; x++) {
+      for (let y = 0; y < boardSize; y++) {
+        const val = board[x][y];
+        if (typeof val !== 'number' || val === 0) continue;
+
+        const around = dirs.map(([dx, dy]) => [x + dx, y + dy])
+                           .filter(([nx, ny]) => nx >= 0 && nx < boardSize && ny >= 0 && ny < boardSize);
+        const unknowns = around.filter(([nx, ny]) => board[nx][ny] === null);
+        const flags = around.filter(([nx, ny]) => board[nx][ny] === 'F');
+
+        // 周围未知格子数 + 插旗数 === 当前数字 → 说明未知格子都是雷
+        if (unknowns.length > 0 && unknowns.length + flags.length === val) {
+          unknowns.forEach(([nx, ny]) => toFlag.push([nx, ny]));
+        }
+
+        // 插旗数 === 当前数字 → 剩下未知格子可安全点击
+        if (unknowns.length > 0 && flags.length === val) {
+          unknowns.forEach(([nx, ny]) => safeClicks.push([nx, ny]));
+        }
+      }
+    }
+
+    return { safeClicks, toFlag };
+  }
+
+  function leftClick(el) {
+    el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 }));
+    el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, button: 0 }));
+    el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }));
+  }
+
+  function rightClick(el) {
+    el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2 }));
+  }
+
+  const interval = setInterval(() => {
+    syncBoardFromDOM();
+    console.log("当前棋盘：");
+    console.log(board);
+    const { safeClicks, toFlag } = analyzeBoard();
+
+    if (toFlag.length > 0) {
+      toFlag.forEach(([x, y]) => {
+        const el = getTile(x, y);
+        if (el && board[x][y] === null) {
+          console.log(`🚩 插旗 [${x}, ${y}]`);
+          rightClick(el);
+          board[x][y] = 'F'; // 标记本地
+        }
+      });
+    } else if (safeClicks.length > 0) {
+      const [x, y] = safeClicks[0];
+      const el = getTile(x, y);
+      if (el && board[x][y] === null) {
+        console.log(`✅ 安全点击 [${x}, ${y}]`);
+        leftClick(el);
+      }
+    } else {
+      // 无法推理时，随便点一个未知格子（或停下来）
+      for (let x = 0; x < boardSize; x++) {
+        for (let y = 0; y < boardSize; y++) {
+          if (board[x][y] === null) {
+            const el = getTile(x, y);
+            if (el) {
+              console.log(`🌀 猜测点击 [${x}, ${y}]`);
+              leftClick(el);
+              return;
+            }
+          }
+        }
+      }
+
+      console.log("🎉 没有可以点的格子了，结束！");
+      clearInterval(interval);
+    }
+
+  }, 1000);
+})();
