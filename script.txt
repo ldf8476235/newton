@@ -15,7 +15,7 @@
     for (let i = 1; i <= 8; i++) {
       if (classList.contains(`text-${i}`)) return i;
     }
-    if (classList.contains('flagged')) return 'F'; // 旗子
+    if (classList.contains('tile-flagged')) return 'F'; // 旗子
     return null;
   }
 
@@ -36,6 +36,10 @@
         // 否则尝试读取数字
         else if (text !== '' && !isNaN(text)) {
           board[x][y] = parseInt(text);
+        } else if (readTileValue(el) === 'F'){
+          board[x][y] = 'F';
+        } else {
+          board[x][y] = null;
         }
       }
     }
@@ -126,7 +130,15 @@
       }
 
       console.log("🎉 没有可以点的格子了，结束！");
-      clearInterval(interval);
+      const btn = [...document.querySelectorAll('button')].find(b => 
+        b.innerText.trim().toLowerCase().includes('play again')
+      );
+      if (btn) {
+        btn.click();
+       
+      } else {
+        clearInterval(interval);
+      }
     }
 
   }, 1000);
