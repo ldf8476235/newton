@@ -22,7 +22,7 @@
 
     const hasBomb = tiles.some(el => el.classList.contains('bomb'));
     if (hasBomb) {
-      console.log('💥 踩雷了，游戏结束！');
+      console.log('游戏结束！');
       const btn = [...document.querySelectorAll('button')].find(b =>
         b.innerText.trim().toLowerCase().includes('play again')
       );
